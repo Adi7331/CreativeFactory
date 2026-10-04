@@ -1,19 +1,13 @@
 {
   "ads_count": 5,
   "clips_per_ad": 4,
-  "hook_seconds": 2.5,
-  "clip_seconds": 1.8,
-  "cta_seconds": 2.0,
-  "fps": 30,
-  "width": 1080,
-  "height": 1920,
-  "seed": 42,
-  "fit": "crop",
   "use_cta": false,
+  "output_mode": "portrait",
+  "seed": null,
   "crf": 20,
   "preset": "fast",
   "threads": 4,
   "inputs_dir": ".",
-  "output_dir": "output"
+  "output_dir": "Gotowe filmy"
 }
 

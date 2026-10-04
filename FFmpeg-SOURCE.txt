@@ -1,0 +1,10 @@
+FFmpeg source used for the bundled Windows binaries
+
+Version: 9.0.2
+Upstream commit: 946fcce07b
+Source archive: https://github.com/FFmpeg/FFmpeg/archive/946fcce07b.zip
+Build notes and configuration: FFmpeg-README.txt
+License: GPL v3 (see FFmpeg-LICENSE.txt)
+
+The matching upstream source is hosted by FFmpeg on GitHub. This text is included
+with the application archive so users can identify the exact source revision.
