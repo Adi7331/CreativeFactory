@@ -140,7 +140,9 @@ class Window(QMainWindow):
 
     def build_ui(self):
         self.setStyleSheet('''
-            QMainWindow, QWidget {background:#121212;color:#f5f5f5;font-family:"Segoe UI";font-size:13px}
+            QMainWindow, QWidget#root {background:#121212}
+            QWidget {color:#f5f5f5;font-family:"Segoe UI";font-size:13px}
+            QLabel {background:transparent}
             QFrame#panel {background:#202022;border:1px solid #38383b;border-radius:16px}
             QLabel#title {font-size:25px;font-weight:750}
             QLabel#heading {font-size:17px;font-weight:700}
@@ -157,6 +159,7 @@ class Window(QMainWindow):
             QScrollArea {border:0;background:transparent}
         ''')
         root = QWidget()
+        root.setObjectName('root')
         self.setCentralWidget(root)
         outer = QVBoxLayout(root)
         outer.setContentsMargins(24, 18, 24, 22)
