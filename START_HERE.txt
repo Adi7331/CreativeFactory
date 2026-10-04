@@ -1,0 +1,16 @@
+CREATIVE FACTORY — SZYBKI START
+
+1. Rozpakuj cały ZIP do folderu.
+2. Otwórz CreativeFactory.exe.
+3. Dodaj hooki (początki) i klipy (środek filmu). CTA jest opcjonalne.
+4. Ustaw liczbę filmów i długość ujęć, potem kliknij „Generuj filmy”.
+5. Kliknij „Otwórz folder wyników”, aby zobaczyć MP4 i manifest.csv.
+
+Przy pierwszym uruchomieniu program tworzy projekt w Dokumenty\Creative Factory.
+Przycisk „Zmień projekt” pozwala wskazać inny folder, także istniejący.
+Filmy i ustawienia projektu są poza folderem aplikacji. Przy aktualizacji
+rozpakuj nowy ZIP osobno i uruchom nowe EXE.
+
+Nie przenoś samego pliku EXE bez folderu _internal.
+Program działa lokalnie i nie wysyła Twoich filmów do internetu.
+
