@@ -17,16 +17,19 @@ if (!(Test-Path -LiteralPath $license) -or !(Test-Path -LiteralPath $readme)) {
 if (!(Get-Command python -ErrorAction SilentlyContinue)) { throw 'Do budowy potrzebny jest Python. Użytkownicy ZIP go nie potrzebują.' }
 Push-Location $repo
 try {
-    $venv = Join-Path $repo '.build-venv'
+    # Krótka ścieżka w TEMP omija limit długości nazw plików Qt na Windows.
+    $venv = Join-Path $env:TEMP 'CFBuild-v1'
     $builder = Join-Path $venv 'Scripts\python.exe'
     if (!(Test-Path -LiteralPath $builder)) { python -m venv $venv }
-    & $builder -m pip install -r requirements-build.txt
+    & $builder -m pip install --disable-pip-version-check -r requirements-build.txt
+    if ($LASTEXITCODE -ne 0) { throw 'Instalacja bibliotek do budowy nie powiodła się.' }
     & $builder -m PyInstaller --noconfirm --clean --onedir --windowed --name CreativeFactory `
         --distpath $OutputDir --workpath build --specpath build `
         --paths $repo `
         --add-data "$(Join-Path $repo 'config.default.json');." `
         --add-binary "${ffmpeg};tools/ffmpeg" `
         --add-binary "${ffprobe};tools/ffmpeg" main.py
+    if ($LASTEXITCODE -ne 0) { throw 'Budowanie EXE nie powiodło się.' }
     $program = Join-Path $OutputDir 'CreativeFactory'
     Copy-Item -LiteralPath $license -Destination (Join-Path $program 'FFmpeg-LICENSE.txt')
     Copy-Item -LiteralPath $readme -Destination (Join-Path $program 'FFmpeg-README.txt')
