@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QSettings
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QApplication, QListWidgetItem
+from PySide6.QtWidgets import QApplication, QListWidgetItem, QComboBox
 
 from main import Window, _project_root, read_config
 from creative_factory.projects import create_project
@@ -39,6 +39,61 @@ class MainWindowTests(unittest.TestCase):
         self.assertFalse(hasattr(self.window, "clip_seconds"))
         self.assertEqual(self.window.format.currentData(), "portrait")
         self.assertEqual(self.window.fit.currentData(), "fill")
+
+    def test_series_counts_are_large_dropdowns(self):
+        self.assertIsInstance(self.window.ads, QComboBox)
+        self.assertIsInstance(self.window.clips, QComboBox)
+        self.assertEqual(self.window.ads.currentData(), 5)
+        self.assertEqual(self.window.clips.currentData(), 4)
+        self.assertIn(10, [self.window.ads.itemData(i) for i in range(self.window.ads.count())])
+        self.assertIn(100, [self.window.ads.itemData(i) for i in range(self.window.ads.count())])
+
+    def test_legacy_count_values_are_kept_in_dropdown(self):
+        path = self.project / "config.json"
+        path.write_text(json.dumps({"ads_count": 42, "clips_per_ad": 17, "output_mode": "portrait",
+                                    "use_cta": False}), encoding="utf-8")
+
+        self.window.load_project()
+
+        self.assertEqual(self.window.ads.currentData(), 42)
+        self.assertEqual(self.window.clips.currentData(), 17)
+        self.assertIn("niestandardowa", self.window.ads.currentText().casefold())
+
+    def test_settings_are_in_collapsible_sections(self):
+        self.assertFalse(self.window.asset_section.isExpanded())
+
+        self.window.asset_section.setExpanded(True)
+
+        self.assertTrue(self.window.asset_section.isExpanded())
+        self.assertTrue(self.window.asset_section.toggle_button.isCheckable())
+
+    def test_asset_changes_use_status_instead_of_save_button(self):
+        self.assertFalse(hasattr(self.window, "save_asset_button"))
+        self.assertEqual(self.window.asset_status.text(), "Wybierz ujęcie")
+
+    def test_asset_settings_are_written_and_report_saved_status(self):
+        source = self.project / "Hooki" / "hook.mp4"
+        source.write_bytes(b"not a real video")
+        self.window.media_metadata[source] = {"duration": 2.0, "width": 720, "height": 1280}
+        self.window.show_preview = lambda *_: None
+        item = QListWidgetItem(source.name)
+        item.setData(Qt.UserRole, str(source))
+        self.window.lists["hooks"].addItem(item)
+        self.window.lists["hooks"].setCurrentRow(0)
+        self.window.trim_start.setValue(.25)
+        self.window.trim_end.setValue(1.75)
+
+        self.window.save_selected_asset()
+
+        assets = json.loads((self.project / "assets.json").read_text(encoding="utf-8"))
+        self.assertEqual(assets["Hooki/hook.mp4"]["trim"], {"start": .25, "end": 1.75})
+        self.assertEqual(self.window.asset_status.text(), "Zapisano")
+
+    def test_library_lists_expose_empty_state_and_counts(self):
+        self.window.refresh()
+
+        self.assertEqual(self.window.library_counts["hooks"].text(), "0")
+        self.assertIn("Przeciągnij", self.window.lists["hooks"].placeholder_text())
 
     def test_legacy_settings_load_without_forcing_old_length_or_fps(self):
         path = self.project / "config.json"
@@ -105,7 +160,7 @@ class MainWindowTests(unittest.TestCase):
         second = create_project(self.root / "Produkt B", DEFAULTS)
         self.settings.setValue("projects", [str(self.project), str(second)])
         self.window.refresh_project_combo()
-        self.window.ads.setValue(7)
+        self.window.ads.setCurrentIndex(self.window.ads.findData(7))
         self.window.project_combo.setCurrentIndex(1)
 
         self.assertEqual(self.window.project, second)

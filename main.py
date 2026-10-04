@@ -10,12 +10,12 @@ import sys
 import threading
 
 from PySide6.QtCore import QSettings, Qt, QThread, QUrl, Signal, QStandardPaths, QTimer
-from PySide6.QtGui import QDesktopServices, QPixmap
+from PySide6.QtGui import QColor, QDesktopServices, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
+    QApplication, QAbstractSpinBox, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
     QFrame, QHBoxLayout, QInputDialog, QLabel, QListWidget, QListWidgetItem,
     QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea, QSlider,
-    QSpinBox, QSplitter, QVBoxLayout, QWidget,
+    QSizePolicy, QSplitter, QToolButton, QVBoxLayout, QWidget,
 )
 
 from creative_factory import projects, remix
@@ -146,10 +146,23 @@ def thumbnail(source, project, seconds=0.2, geometry=None, settings=None):
 class DropList(QListWidget):
     files_dropped = Signal(list)
 
-    def __init__(self):
+    def __init__(self, placeholder='Przeciągnij pliki tutaj lub kliknij „Dodaj pliki”.'):
         super().__init__()
+        self._placeholder = placeholder
         self.setAcceptDrops(True)
         self.setDragDropMode(QListWidget.DropOnly)
+
+    def placeholder_text(self):
+        return self._placeholder
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.count():
+            return
+        painter = QPainter(self.viewport())
+        painter.setPen(QColor('#b7b7bd'))
+        painter.drawText(self.viewport().rect().adjusted(16, 16, -16, -16),
+                         Qt.AlignCenter | Qt.TextWordWrap, self._placeholder)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -167,6 +180,41 @@ class DropList(QListWidget):
         paths = [Path(url.toLocalFile()) for url in event.mimeData().urls() if url.isLocalFile()]
         self.files_dropped.emit(paths)
         event.acceptProposedAction()
+
+
+class CollapsibleSection(QFrame):
+    toggled = Signal(bool)
+
+    def __init__(self, title, expanded=False):
+        super().__init__()
+        self.setObjectName('section')
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.toggle_button = QToolButton()
+        self.toggle_button.setText(title)
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.toggle_button.clicked.connect(self.setExpanded)
+        layout.addWidget(self.toggle_button)
+        self.body = QWidget()
+        self.body_layout = QVBoxLayout(self.body)
+        self.body_layout.setContentsMargins(12, 8, 12, 12)
+        self.body_layout.setSpacing(9)
+        layout.addWidget(self.body)
+        self.setExpanded(expanded)
+
+    def setExpanded(self, expanded):
+        expanded = bool(expanded)
+        self.toggle_button.blockSignals(True)
+        self.toggle_button.setChecked(expanded)
+        self.toggle_button.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        self.toggle_button.blockSignals(False)
+        self.body.setVisible(expanded)
+        self.toggled.emit(expanded)
+
+    def isExpanded(self):
+        return self.toggle_button.isChecked()
 
 
 class ThumbnailWorker(QThread):
@@ -274,14 +322,20 @@ class Window(QMainWindow):
             QLabel#title {font-size:24px;font-weight:750}
             QLabel#heading {font-size:16px;font-weight:700}
             QLabel#muted {color:#b7b7bd}
-            QPushButton {background:#2b2b2e;color:white;border:1px solid #444449;border-radius:9px;padding:8px 11px}
-            QPushButton:hover {background:#3b3b3f}
+            QPushButton, QToolButton {background:#2b2b2e;color:white;border:1px solid #444449;border-radius:9px;padding:8px 12px;min-height:36px}
+            QPushButton:hover, QToolButton:hover {background:#3b3b3f}
             QPushButton:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
-            QListWidget:focus, QSlider:focus {border:2px solid #f7a66e}
+            QListWidget:focus, QSlider:focus, QToolButton:focus {border:2px solid #f7a66e}
             QPushButton#primary {background:#f7a66e;color:#19130f;border:0;font-weight:750;font-size:15px;padding:13px}
             QPushButton#primary:disabled {background:#645447;color:#c9b9ae}
             QPushButton#danger {background:#402c2c;color:#fff;border:1px solid #664141}
-            QListWidget, QSpinBox, QDoubleSpinBox, QComboBox {background:#29292c;color:#f5f5f5;border:1px solid #414145;border-radius:8px;padding:5px;min-height:24px}
+            QToolButton {text-align:left;font-weight:700;font-size:14px;background:#29292c;border:0;border-radius:8px;padding:9px 10px}
+            QToolButton:hover {background:#343438}
+            QFrame#section {background:#202022;border:1px solid #38383b;border-radius:10px}
+            QListWidget, QSpinBox, QDoubleSpinBox, QComboBox {background:#29292c;color:#f5f5f5;border:1px solid #414145;border-radius:8px;padding:7px 10px;min-height:36px}
+            QComboBox::drop-down {width:32px;border:0}
+            QCheckBox {min-height:36px;padding:4px 0}
+            QCheckBox::indicator {width:18px;height:18px}
             QListWidget::item {padding:6px;border-bottom:1px solid #3a3a3c}
             QListWidget::item:selected {background:#594235}
             QProgressBar {background:#343436;border:0;border-radius:6px;text-align:center;min-height:14px}
@@ -298,7 +352,7 @@ class Window(QMainWindow):
         outer.setSpacing(12)
 
         header = QHBoxLayout()
-        brand = QLabel('◩  Generator filmów Adi')
+        brand = QLabel('Generator filmów Adi')
         brand.setObjectName('heading')
         header.addWidget(brand)
         header.addStretch()
@@ -334,25 +388,31 @@ class Window(QMainWindow):
         columns.addWidget(library)
         lib_layout = library.layout()
         self.lists = {}
+        self.library_counts = {}
         self.add_buttons = []
         for role, label in ROLE_LABELS.items():
             row = QHBoxLayout()
             heading = QLabel(label)
             heading.setObjectName('heading')
             row.addWidget(heading)
+            count = QLabel('0')
+            count.setObjectName('muted')
+            count.setAlignment(Qt.AlignCenter)
+            count.setMinimumWidth(28)
+            self.library_counts[role] = count
+            row.addWidget(count)
             row.addStretch()
-            add = QPushButton('+ Dodaj')
+            add = QPushButton('Dodaj pliki')
             add.clicked.connect(lambda _=False, r=role: self.add_files(r))
             self.add_buttons.append(add)
             row.addWidget(add)
             lib_layout.addLayout(row)
-            listing = DropList()
-            listing.setMinimumHeight(95 if role == 'cta' else 135)
+            listing = DropList(f'Przeciągnij tutaj {label.lower()}\nlub kliknij „Dodaj pliki”.')
+            listing.setMinimumHeight(125 if role == 'cta' else 155)
             listing.files_dropped.connect(lambda paths, r=role: self.import_files(r, paths))
             listing.itemSelectionChanged.connect(lambda r=role: self.selection_changed(r))
             lib_layout.addWidget(listing, 1)
             self.lists[role] = listing
-        lib_layout.addWidget(self.muted('Przeciągnij pliki do wybranej biblioteki. Kopia zostanie dodana do projektu.'))
 
         center = self.panel('Podgląd')
         center.setMinimumWidth(360)
@@ -391,17 +451,27 @@ class Window(QMainWindow):
 
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
-        right_scroll.setMinimumWidth(285)
-        right_scroll.setMaximumWidth(340)
-        settings = self.panel('Ustawienia filmu')
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        right_scroll.setMinimumWidth(320)
+        right_scroll.setMaximumWidth(380)
+        self.right_scroll = right_scroll
+        settings = QFrame()
+        settings.setObjectName('panel')
+        settings.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        set_layout = QVBoxLayout(settings)
+        set_layout.setContentsMargins(10, 10, 10, 10)
+        set_layout.setSpacing(10)
         right_scroll.setWidget(settings)
         columns.addWidget(right_scroll)
-        set_layout = settings.layout()
-        set_layout.addWidget(self.muted('Całe ujęcia są używane domyślnie.'))
+        self.settings_section = CollapsibleSection('Ustawienia filmu', expanded=True)
+        set_layout.addWidget(self.settings_section)
+        film_layout = self.settings_section.body_layout
+        film_layout.addWidget(self.muted('Całe ujęcia są używane domyślnie.'))
         form = QFormLayout()
         form.setSpacing(9)
-        self.ads = QSpinBox(); self.ads.setRange(1, 100); self.ads.setToolTip('Ile gotowych filmów złożyć w tej serii.')
-        self.clips = QSpinBox(); self.clips.setRange(1, 100); self.clips.setToolTip('Ile różnych klipów wstawić między hookiem a zakończeniem.')
+        form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        self.ads = self._count_combo('Ile gotowych filmów złożyć w tej serii.')
+        self.clips = self._count_combo('Ile różnych klipów wstawić między hookiem a zakończeniem.')
         self.format = QComboBox()
         self.format.addItem('Pionowy 9:16', 'portrait')
         self.format.addItem('Format materiałów', 'source')
@@ -410,33 +480,32 @@ class Window(QMainWindow):
         form.addRow('Klipy w filmie', self.clips)
         form.addRow('Format filmu', self.format)
         form.addRow('', self.cta)
-        set_layout.addLayout(form)
+        film_layout.addLayout(form)
         self.output_info = self.muted('Rozmiar i FPS dopasują się do materiałów.')
         self.output_info.setWordWrap(True)
-        set_layout.addWidget(self.output_info)
+        film_layout.addWidget(self.output_info)
         self.format.currentIndexChanged.connect(self.refresh_output_info)
         self.cta.toggled.connect(self.refresh_output_info)
 
-        self.asset_panel = self.panel('Wybrane ujęcie')
-        set_layout.addWidget(self.asset_panel)
-        asset_layout = self.asset_panel.layout()
+        self.asset_section = CollapsibleSection('Wybrane ujęcie', expanded=False)
+        set_layout.addWidget(self.asset_section)
+        asset_layout = self.asset_section.body_layout
         self.asset_hint = self.muted('Wybierz plik z biblioteki, aby ustawić jego kadr lub skrócić go.')
         self.asset_hint.setWordWrap(True)
         asset_layout.addWidget(self.asset_hint)
+        self.asset_status = self.muted('Wybierz ujęcie')
+        asset_layout.addWidget(self.asset_status)
         self.asset_form = QFormLayout()
-        self.trim_start = QDoubleSpinBox(); self.trim_start.setRange(0, 86400); self.trim_start.setDecimals(2); self.trim_start.setSingleStep(.1); self.trim_start.setSuffix(' s')
-        self.trim_end = QDoubleSpinBox(); self.trim_end.setRange(0, 86400); self.trim_end.setDecimals(2); self.trim_end.setSingleStep(.1); self.trim_end.setSuffix(' s')
+        self.trim_start = self._time_field()
+        self.trim_end = self._time_field()
         self.fit = QComboBox(); self.fit.addItem('Wypełnij kadr', 'fill'); self.fit.addItem('Pokaż cały obraz', 'contain')
         self.asset_form.addRow('Od', self.trim_start)
         self.asset_form.addRow('Do', self.trim_end)
         self.asset_form.addRow('Kadr', self.fit)
         asset_layout.addLayout(self.asset_form)
-        self.crop_x = self._slider_row(asset_layout, 'Poziom')
-        self.crop_y = self._slider_row(asset_layout, 'Pion')
-        self.save_asset_button = QPushButton('Zapisz ustawienia ujęcia')
-        self.save_asset_button.clicked.connect(self.save_selected_asset)
-        asset_layout.addWidget(self.save_asset_button)
-        for widget in (self.trim_start, self.trim_end, self.fit, self.crop_x, self.crop_y, self.save_asset_button):
+        self.crop_x, self.crop_x_value = self._slider_row(asset_layout, 'Poziom')
+        self.crop_y, self.crop_y_value = self._slider_row(asset_layout, 'Pion')
+        for widget in (self.trim_start, self.trim_end, self.fit, self.crop_x, self.crop_y):
             widget.setEnabled(False)
         self.asset_update_timer = QTimer(self)
         self.asset_update_timer.setSingleShot(True)
@@ -464,13 +533,38 @@ class Window(QMainWindow):
         self.status = self.muted('Gotowe do pracy')
         self.status.setWordWrap(True)
         set_layout.addWidget(self.status)
-        self.ads.valueChanged.connect(self.schedule_config_save)
-        self.clips.valueChanged.connect(self.schedule_config_save)
+        self.ads.currentIndexChanged.connect(self.schedule_config_save)
+        self.clips.currentIndexChanged.connect(self.schedule_config_save)
         self.config_save_timer = QTimer(self)
         self.config_save_timer.setSingleShot(True)
         self.config_save_timer.setInterval(250)
         self.config_save_timer.timeout.connect(self.save_current_settings)
         columns.setSizes([260, 720, 315])
+
+    def _count_combo(self, tooltip):
+        combo = QComboBox()
+        for value in [*range(1, 11), 15, 20, 30, 50, 100]:
+            combo.addItem(str(value), value)
+        combo.setToolTip(tooltip)
+        return combo
+
+    def _set_count_combo(self, combo, value):
+        value = int(value)
+        index = combo.findData(value)
+        if index < 0:
+            combo.insertItem(0, f'{value} (niestandardowa)', value)
+            index = 0
+        combo.setCurrentIndex(index)
+
+    def _time_field(self):
+        field = QDoubleSpinBox()
+        field.setRange(0, 86400)
+        field.setDecimals(2)
+        field.setSingleStep(.1)
+        field.setSuffix(' s')
+        field.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        field.setMinimumWidth(120)
+        return field
 
     def _slider_row(self, layout, title):
         row = QHBoxLayout()
@@ -478,11 +572,17 @@ class Window(QMainWindow):
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 1000)
         slider.setValue(500)
+        value = QLabel('50%')
+        value.setObjectName('muted')
+        value.setMinimumWidth(42)
+        value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        slider.valueChanged.connect(lambda amount, label=value: label.setText(f'{amount / 10:g}%'))
         row.addWidget(slider, 1)
+        row.addWidget(value)
         wrapper = QWidget()
         wrapper.setLayout(row)
         layout.addWidget(wrapper)
-        return slider
+        return slider, value
 
     def panel(self, title):
         frame = QFrame()
@@ -510,8 +610,8 @@ class Window(QMainWindow):
             config = dict(remix.DEFAULTS)
         self.project_label = self.project.name
         self.settings.setValue('project_path', str(self.project))
-        self.ads.setValue(config['ads_count'])
-        self.clips.setValue(config['clips_per_ad'])
+        self._set_count_combo(self.ads, config['ads_count'])
+        self._set_count_combo(self.clips, config['clips_per_ad'])
         self.format.setCurrentIndex(max(0, self.format.findData(config['output_mode'])))
         self.cta.setChecked(config['use_cta'])
         self._loading_project = False
@@ -613,6 +713,7 @@ class Window(QMainWindow):
                     item = QListWidgetItem(source.name)
                     item.setData(Qt.UserRole, str(source))
                     listing.addItem(item)
+            self.library_counts[role].setText(str(listing.count()))
         self.refresh_results()
         self.refresh_output_info()
 
@@ -644,11 +745,14 @@ class Window(QMainWindow):
                     listing.blockSignals(False)
         role, source = self.selected_asset()
         enabled = source is not None
-        for widget in (self.trim_start, self.trim_end, self.fit, self.crop_x, self.crop_y, self.save_asset_button):
+        for widget in (self.trim_start, self.trim_end, self.fit, self.crop_x, self.crop_y):
             widget.setEnabled(enabled)
         if not source:
+            self.asset_section.setExpanded(False)
+            self.asset_status.setText('Wybierz ujęcie')
             self.asset_hint.setText('Wybierz plik z biblioteki, aby ustawić jego kadr lub skrócić go.')
             return
+        self.asset_section.setExpanded(True)
         self.preview_path = source
         key = _settings_key(self.project, source)
         settings = _read_assets(self.project).get(key, {})
@@ -670,8 +774,10 @@ class Window(QMainWindow):
             self.crop_y.setValue(round(float(settings.get('y', .5)) * 1000))
             for widget in (self.fit, self.crop_x, self.crop_y):
                 widget.blockSignals(False)
+            self.asset_status.setText('Gotowe do edycji')
             self.asset_hint.setText(f'{ROLE_LABELS[role]} · {meta["width"]}×{meta["height"]} · {meta["duration"]:.2f} s')
         except (OSError, ValueError, remix.RemixError, KeyError) as exc:
+            self.asset_status.setText('Nie można odczytać ujęcia')
             self.asset_hint.setText(f'Nie można odczytać filmu: {exc}')
         self.show_preview(source)
 
@@ -697,11 +803,14 @@ class Window(QMainWindow):
             return
         meta = self.media_metadata.get(source)
         if meta is None:
+            self.asset_status.setText('Nie zapisano')
             return
         start, end = self.trim_start.value(), self.trim_end.value()
         if end <= start:
+            self.asset_status.setText('Nie zapisano')
             self.asset_hint.setText('Koniec ujęcia musi być późniejszy niż jego początek.')
             return
+        self.asset_status.setText('Zapisuję…')
         settings = _read_assets(self.project)
         key = _settings_key(self.project, source)
         full_length = start < .01 and abs(end - meta['duration']) < .02
@@ -713,8 +822,10 @@ class Window(QMainWindow):
         }
         try:
             _write_assets(self.project, settings)
+            self.asset_status.setText('Zapisano')
             self.asset_hint.setText(f'{ROLE_LABELS[role]} · ustawienia zapisane')
         except OSError as exc:
+            self.asset_status.setText('Nie zapisano')
             QMessageBox.warning(self, 'Nie zapisano ustawień ujęcia', str(exc))
 
     def refresh_output_info(self, *_):
@@ -747,7 +858,7 @@ class Window(QMainWindow):
         if self._loading_project or not hasattr(self, 'ads') or not self.project.exists():
             return
         try:
-            save_config(self.project, dict(ads_count=self.ads.value(), clips_per_ad=self.clips.value(),
+            save_config(self.project, dict(ads_count=int(self.ads.currentData()), clips_per_ad=int(self.clips.currentData()),
                                            output_mode=self.format.currentData(), use_cta=self.cta.isChecked()))
         except (OSError, remix.RemixError):
             pass
@@ -858,8 +969,9 @@ class Window(QMainWindow):
         for widget in (self.new_project_button, self.rename_project_button, self.open_project_button,
                        self.generate, self.format, self.ads, self.clips, self.cta,
                        self.batch_combo, self.open_output_button, self.open_preview_button,
-                       self.save_asset_button, self.trim_start, self.trim_end, self.fit,
-                       self.crop_x, self.crop_y, *self.add_buttons, *self.lists.values()):
+                       self.trim_start, self.trim_end, self.fit,
+                       self.crop_x, self.crop_y, self.settings_section, self.asset_section,
+                       *self.add_buttons, *self.lists.values()):
             widget.setEnabled(not active)
         self.cancel_button.setVisible(active)
         self.cancel_button.setEnabled(active)
