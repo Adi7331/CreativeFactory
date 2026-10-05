@@ -23,25 +23,26 @@ try {
     if (!(Test-Path -LiteralPath $builder)) { python -m venv $venv }
     & $builder -m pip install --disable-pip-version-check -r requirements-build.txt
     if ($LASTEXITCODE -ne 0) { throw 'Instalacja bibliotek do budowy nie powiodła się.' }
-    & $builder -m PyInstaller --noconfirm --clean --onedir --windowed --name CreativeFactory `
+    & $builder -m PyInstaller --noconfirm --clean --onedir --windowed --name GeneratorFilmowAdi `
         --distpath $OutputDir --workpath build --specpath build `
         --paths $repo `
         --add-data "$(Join-Path $repo 'config.default.json');." `
         --add-binary "${ffmpeg};tools/ffmpeg" `
         --add-binary "${ffprobe};tools/ffmpeg" main.py
     if ($LASTEXITCODE -ne 0) { throw 'Budowanie EXE nie powiodło się.' }
-    $program = Join-Path $OutputDir 'CreativeFactory'
+    $program = Join-Path $OutputDir 'GeneratorFilmowAdi'
     Copy-Item -LiteralPath $license -Destination (Join-Path $program 'FFmpeg-LICENSE.txt')
     Copy-Item -LiteralPath $readme -Destination (Join-Path $program 'FFmpeg-README.txt')
     Copy-Item -LiteralPath (Join-Path $repo 'LGPL-3.0.txt') -Destination $program
     Copy-Item -LiteralPath (Join-Path $repo 'GPL-3.0.txt') -Destination $program
     Copy-Item -LiteralPath (Join-Path $repo 'THIRD_PARTY.md') -Destination $program
+    Copy-Item -LiteralPath (Join-Path $repo 'FFmpeg-SOURCE.txt') -Destination $program
     Copy-Item -LiteralPath (Join-Path $repo 'START_HERE.txt') -Destination $program
     $pythonLicense = & $builder -c "import sys; from pathlib import Path; print(Path(sys.base_prefix) / 'LICENSE.txt')"
     if (Test-Path -LiteralPath $pythonLicense) {
         Copy-Item -LiteralPath $pythonLicense -Destination (Join-Path $program 'Python-LICENSE.txt')
     }
-    Write-Host "Gotowe: $(Join-Path $OutputDir 'CreativeFactory')"
+    Write-Host "Gotowe: $(Join-Path $OutputDir 'GeneratorFilmowAdi')"
 }
 finally { Pop-Location }
 

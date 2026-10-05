@@ -1,16 +1,17 @@
-CREATIVE FACTORY — SZYBKI START
+GENERATOR FILMÓW ADI — SZYBKI START
 
 1. Rozpakuj cały ZIP do folderu.
-2. Otwórz CreativeFactory.exe.
-3. Dodaj hooki (początki) i klipy (środek filmu). CTA jest opcjonalne.
-4. Ustaw liczbę filmów i długość ujęć, potem kliknij „Generuj filmy”.
-5. Kliknij „Otwórz folder wyników”, aby zobaczyć MP4 i manifest.csv.
+2. Uruchom GeneratorFilmowAdi.exe. Nie przenoś go bez folderu _internal.
+3. Wybierz projekt produktu albo utwórz nowy.
+4. Dodaj pliki do Hooków, Klipów i opcjonalnie Zakończeń.
+5. Wybierz liczbę filmów, klipów i format, a następnie kliknij „Generuj filmy”.
 
-Przy pierwszym uruchomieniu program tworzy projekt w Dokumenty\Creative Factory.
-Przycisk „Zmień projekt” pozwala wskazać inny folder, także istniejący.
-Filmy i ustawienia projektu są poza folderem aplikacji. Przy aktualizacji
-rozpakuj nowy ZIP osobno i uruchom nowe EXE.
+CTA to po prostu opcjonalne zakończenie filmu. Bez niego film kończy się ostatnim klipem.
+Domyślnie każdy materiał jest używany w całości. Po wybraniu ujęcia możesz ustawić „Od/Do” i sposób kadrowania.
 
-Nie przenoś samego pliku EXE bez folderu _internal.
+Nowe projekty są w Dokumentach\Generator filmów Adi\Projekty.
+Wyniki i ustawienia są zapisane osobno dla każdego projektu.
+Gotowe filmy trafiają do folderu „Gotowe filmy”; dokładny skład zapisuje manifest.csv.
+
 Program działa lokalnie i nie wysyła Twoich filmów do internetu.
 

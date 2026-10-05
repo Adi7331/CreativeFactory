@@ -11,7 +11,14 @@ clips/
 cta/
 output/
 _work/
+Hooki/
+Klipy/
+Zakończenia/
+Gotowe filmy/
+_robocze/
+.superpowers/
 config.json
+assets.json
 *.mov
 *.mp4
 *.mkv
